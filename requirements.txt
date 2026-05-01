@@ -1,4 +1,8 @@
 fastapi
 uvicorn
-firebase-admin
+sentence-transformers
+PyPDF2
+numpy
+google-cloud-firestore
 python-multipart
+
