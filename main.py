@@ -1,8 +1,10 @@
 from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-import PyPDF2
 import numpy as np
+import PyPDF2
+import pytesseract
+from pdf2image import convert_from_path
 from google.cloud import firestore
 import uuid
 
@@ -14,15 +16,29 @@ db = firestore.Client()
 # Modelo de embeddings
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
+# Configura caminho do Tesseract no Windows
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 # -------------------------------
-# Função para processar PDF
+# Função para processar PDF (texto + OCR)
 # -------------------------------
 def process_pdf(file_path, doc_id=None):
-    reader = PyPDF2.PdfReader(open(file_path, "rb"))
     text = ""
-    for page in reader.pages:
-        if page.extract_text():
-            text += page.extract_text()
+
+    try:
+        # Primeiro tenta extrair texto com PyPDF2
+        reader = PyPDF2.PdfReader(open(file_path, "rb"))
+        for page in reader.pages:
+            if page.extract_text():
+                text += page.extract_text()
+    except:
+        pass
+
+    # Se não achou texto, usa OCR
+    if not text.strip():
+        images = convert_from_path(file_path)
+        for img in images:
+            text += pytesseract.image_to_string(img)
 
     if not text.strip():
         raise ValueError("PDF sem texto legível")
